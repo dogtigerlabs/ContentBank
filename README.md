@@ -1,2 +1,2 @@
 # ContentBank
-TIny Library Content Bank Storage COmponent
+TIny Library Content Bank Storage Component
