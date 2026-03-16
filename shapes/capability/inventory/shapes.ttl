@@ -1,0 +1,204 @@
+@prefix tl:     <https://tinylibrary.io/ns#> .
+@prefix tlinv:  <https://tinylibrary.io/capability/inventory#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+# =============================================================================
+# TinyLibrary — Inventory Capability Shapes
+# Extends: tl:Object (core)
+# Namespace: https://tinylibrary.io/capability/inventory#
+# Version: 0.1.0 (2026-03-16)
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# InventoryItem — a physical or digital item tracked in inventory
+# -----------------------------------------------------------------------------
+
+tlinv:InventoryItem a rdfs:Class ;
+    rdfs:subClassOf tl:Object ;
+    rdfs:comment "A tracked item. tl:typeSlug = 'inventory_item'." .
+
+tlinv:InventoryItemShape a sh:NodeShape ;
+    sh:targetClass tlinv:InventoryItem ;
+    sh:closed false ;
+
+    # Enforce typeSlug
+    sh:property [
+        sh:path     tl:typeSlug ;
+        sh:hasValue "inventory_item" ;
+        sh:message  "InventoryItem must have tl:typeSlug 'inventory_item'." ;
+    ] ;
+
+    # --- Core item fields ---
+    sh:property [
+        sh:path     tlinv:name ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:description ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:category ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:comment  "Free-text category or tag. Structured taxonomy TBD." ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:condition ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:in       ( "new" "good" "fair" "poor" "unknown" ) ;
+    ] ;
+
+    # --- Quantity ---
+    sh:property [
+        sh:path     tlinv:quantity ;
+        sh:datatype xsd:decimal ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:unit ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:comment  "Unit of measure for quantity (e.g. 'kg', 'each', 'litre')." ;
+    ] ;
+
+    # --- Location ---
+    sh:property [
+        sh:path     tlinv:location ;
+        sh:class    tlinv:Location ;
+        sh:maxCount 1 ;
+    ] ;
+
+    # --- Acquisition ---
+    sh:property [
+        sh:path     tlinv:acquiredAt ;
+        sh:datatype xsd:dateTime ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:acquiredFrom ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:comment  "Free-text source — vendor, person, etc." ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:value ;
+        sh:datatype xsd:decimal ;
+        sh:maxCount 1 ;
+        sh:comment  "Estimated value. Currency in tlinv:currency." ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:currency ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:pattern  "^[A-Z]{3}$" ;
+        sh:comment  "ISO 4217 currency code." ;
+    ] ;
+
+    # --- Serial / identifiers ---
+    sh:property [
+        sh:path     tlinv:serialNumber ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:barcode ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+
+    # --- Cross-capability references ---
+    sh:property [
+        sh:path     tlinv:relatedObject ;
+        sh:class    tl:Object ;
+        sh:comment  "Reference to any ContentBank Object (e.g. manual as a Document, event where item is used). Scope transitivity enforced by core." ;
+    ] .
+
+
+# --- Location ---
+
+tlinv:Location a rdfs:Class ;
+    rdfs:comment "A physical or logical location for an InventoryItem." .
+
+tlinv:LocationShape a sh:NodeShape ;
+    sh:targetClass tlinv:Location ;
+    sh:closed false ;
+
+    sh:property [
+        sh:path     tlinv:label ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:comment  "Human-readable label, e.g. 'Shed > Top shelf' or 'Living room'." ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:geoLat ;
+        sh:datatype xsd:decimal ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:geoLong ;
+        sh:datatype xsd:decimal ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:nodeId ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:comment  "Optional: urn:cb:node:{uuid} of the TinyLibrary node nearest this location." ;
+    ] .
+
+
+# --- InventoryCollection — a named grouping of items ---
+
+tlinv:InventoryCollection a rdfs:Class ;
+    rdfs:subClassOf tl:Object ;
+    rdfs:comment "A named grouping of InventoryItems (e.g. 'Tool kit', 'Emergency supplies'). tl:typeSlug = 'inventory_collection'." .
+
+tlinv:InventoryCollectionShape a sh:NodeShape ;
+    sh:targetClass tlinv:InventoryCollection ;
+    sh:closed false ;
+
+    sh:property [
+        sh:path     tl:typeSlug ;
+        sh:hasValue "inventory_collection" ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:name ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:description ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlinv:contains ;
+        sh:class    tlinv:InventoryItem ;
+        sh:comment  "Items in this collection. Scope transitivity enforced by core — all items must be same or less restrictive scope than the collection." ;
+    ] .

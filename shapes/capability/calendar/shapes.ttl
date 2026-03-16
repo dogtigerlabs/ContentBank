@@ -1,0 +1,193 @@
+@prefix tl:     <https://tinylibrary.io/ns#> .
+@prefix tlcal:  <https://tinylibrary.io/capability/calendar#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+# =============================================================================
+# TinyLibrary — Calendar Capability Shapes
+# Extends: tl:Object (core)
+# Namespace: https://tinylibrary.io/capability/calendar#
+# Version: 0.1.0 (2026-03-16)
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# CalendarEvent — a scheduled occurrence
+# -----------------------------------------------------------------------------
+
+tlcal:CalendarEvent a rdfs:Class ;
+    rdfs:subClassOf tl:Object ;
+    rdfs:comment "A scheduled event. tl:typeSlug = 'calendar_event'." .
+
+tlcal:CalendarEventShape a sh:NodeShape ;
+    sh:targetClass tlcal:CalendarEvent ;
+    sh:closed false ;
+
+    # Enforce typeSlug
+    sh:property [
+        sh:path     tl:typeSlug ;
+        sh:hasValue "calendar_event" ;
+        sh:message  "CalendarEvent must have tl:typeSlug 'calendar_event'." ;
+    ] ;
+
+    # --- Core event fields ---
+    sh:property [
+        sh:path     tlcal:title ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:description ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:startAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:endAt ;
+        sh:datatype xsd:dateTime ;
+        sh:maxCount 1 ;
+        sh:comment  "Optional. Omit for all-day or open-ended events." ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:allDay ;
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:location ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:status ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:in       ( "tentative" "confirmed" "cancelled" ) ;
+    ] ;
+
+    # --- Attendees (IRI refs to tl:Agent) ---
+    sh:property [
+        sh:path     tlcal:attendee ;
+        sh:class    tl:Agent ;
+        sh:comment  "Zero or more attendees. Scope transitivity applies: attendees must not be more restrictively scoped than the event." ;
+    ] ;
+
+    # --- Recurrence ---
+    sh:property [
+        sh:path     tlcal:recurrence ;
+        sh:class    tlcal:RecurrenceRule ;
+        sh:maxCount 1 ;
+    ] ;
+
+    # --- Reminders ---
+    sh:property [
+        sh:path     tlcal:reminder ;
+        sh:class    tlcal:Reminder ;
+    ] ;
+
+    # --- Cross-capability references ---
+    sh:property [
+        sh:path     tlcal:relatedObject ;
+        sh:class    tl:Object ;
+        sh:comment  "Reference to any other ContentBank Object (e.g. an Inventory item needed for an event). Scope transitivity enforced by core constraint." ;
+    ] .
+
+
+# --- Recurrence Rule ---
+
+tlcal:RecurrenceRule a rdfs:Class ;
+    rdfs:comment "RFC 5545-inspired recurrence definition." .
+
+tlcal:RecurrenceRuleShape a sh:NodeShape ;
+    sh:targetClass tlcal:RecurrenceRule ;
+    sh:closed false ;
+
+    sh:property [
+        sh:path     tlcal:frequency ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in       ( "daily" "weekly" "monthly" "yearly" ) ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:interval ;
+        sh:datatype xsd:integer ;
+        sh:maxCount 1 ;
+        sh:comment  "Every N frequencies. Default 1." ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:until ;
+        sh:datatype xsd:dateTime ;
+        sh:maxCount 1 ;
+        sh:comment  "Recurrence ends at this datetime. Mutually exclusive with tlcal:count." ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:count ;
+        sh:datatype xsd:integer ;
+        sh:maxCount 1 ;
+        sh:comment  "Recurrence ends after N occurrences. Mutually exclusive with tlcal:until." ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:byDay ;
+        sh:datatype xsd:string ;
+        sh:comment  "Day(s) of week: MO, TU, WE, TH, FR, SA, SU." ;
+    ] .
+
+# Constraint: until and count are mutually exclusive
+tlcal:RecurrenceUntilOrCountConstraint a sh:NodeShape ;
+    sh:targetClass tlcal:RecurrenceRule ;
+    sh:sparql [
+        sh:message "tlcal:until and tlcal:count are mutually exclusive on a RecurrenceRule." ;
+        sh:select """
+            PREFIX tlcal: <https://tinylibrary.io/capability/calendar#>
+            SELECT $this
+            WHERE {
+                $this tlcal:until ?u ;
+                      tlcal:count ?c .
+            }
+        """ ;
+    ] .
+
+
+# --- Reminder ---
+
+tlcal:Reminder a rdfs:Class ;
+    rdfs:comment "A reminder attached to a CalendarEvent." .
+
+tlcal:ReminderShape a sh:NodeShape ;
+    sh:targetClass tlcal:Reminder ;
+    sh:closed false ;
+
+    sh:property [
+        sh:path     tlcal:minutesBefore ;
+        sh:datatype xsd:integer ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0 ;
+    ] ;
+
+    sh:property [
+        sh:path     tlcal:method ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:in       ( "notification" "email" "mesh" ) ;
+        sh:comment  "'mesh' = deliver over Donkey Net / Meshtastic." ;
+    ] .

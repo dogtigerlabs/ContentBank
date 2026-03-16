@@ -1,0 +1,308 @@
+@prefix tl:     <https://tinylibrary.io/ns#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+
+# =============================================================================
+# TinyLibrary ContentBank — Core Ontology and SHACL Shapes
+# Namespace: https://tinylibrary.io/ns#
+# Version: 0.1.0 (2026-03-16)
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# Scope — ordered from least to most restrictive
+# -----------------------------------------------------------------------------
+
+tl:Scope a rdfs:Class ;
+    rdfs:comment "Enumeration of content visibility scopes." .
+
+tl:Community  a tl:Scope ; rdfs:label "Community" ;  tl:scopeOrder 0 .
+tl:Group      a tl:Scope ; rdfs:label "Group" ;      tl:scopeOrder 1 .
+tl:Family     a tl:Scope ; rdfs:label "Family" ;      tl:scopeOrder 2 .
+tl:Individual a tl:Scope ; rdfs:label "Individual" ;  tl:scopeOrder 3 .
+
+tl:scopeOrder a owl:DatatypeProperty ;
+    rdfs:domain tl:Scope ;
+    rdfs:range  xsd:integer ;
+    rdfs:comment "Numeric ordering of scope restrictiveness. Higher = more restrictive." .
+
+
+# -----------------------------------------------------------------------------
+# BlobAttachment — binary data linked via IPFS CID
+# -----------------------------------------------------------------------------
+
+tl:BlobAttachment a rdfs:Class ;
+    rdfs:comment "A binary attachment linked from a ContentBank Object via an IPFS CID." .
+
+tl:BlobRole a rdfs:Class ;
+    rdfs:comment "Role played by a blob attachment." .
+
+tl:primary    a tl:BlobRole ; rdfs:label "primary" .
+tl:thumbnail  a tl:BlobRole ; rdfs:label "thumbnail" .
+tl:raw        a tl:BlobRole ; rdfs:label "raw" .
+tl:transcript a tl:BlobRole ; rdfs:label "transcript" .
+tl:preview    a tl:BlobRole ; rdfs:label "preview" .
+
+tl:BlobAttachmentShape a sh:NodeShape ;
+    sh:targetClass tl:BlobAttachment ;
+    sh:closed false ;
+
+    sh:property [
+        sh:path     tl:cid ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern  "^bafy[a-z2-7]+" ;
+        sh:message  "tl:cid must be a valid IPFS CIDv1 (base32, bafy prefix)." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:mimeType ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message  "tl:mimeType is required on every BlobAttachment." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:blobRole ;
+        sh:class    tl:BlobRole ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message  "tl:blobRole is required and must be a tl:BlobRole individual." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:byteSize ;
+        sh:datatype xsd:long ;
+        sh:minCount 0 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:contentHash ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:comment  "Optional SHA-256 hex digest for out-of-band verification." ;
+    ] .
+
+
+# -----------------------------------------------------------------------------
+# Object — base class for all ContentBank objects
+# -----------------------------------------------------------------------------
+
+tl:Object a rdfs:Class ;
+    rdfs:comment "Base class for all ContentBank objects. All Capability types extend this class." .
+
+tl:ObjectShape a sh:NodeShape ;
+    sh:targetClass tl:Object ;
+    sh:closed false ;   # Open: Capability shapes add properties via sh:property on subclasses
+
+    # --- Identity ---
+    sh:property [
+        sh:path     tl:id ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern  "^urn:cb:[a-z][a-z0-9_-]+:[0-9a-f-]{36}$" ;
+        sh:message  "tl:id must follow the pattern urn:cb:{type}:{uuid}." ;
+    ] ;
+
+    # --- Type slug (mirrors the type segment of the ID for filtering) ---
+    sh:property [
+        sh:path     tl:typeSlug ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern  "^[a-z][a-z0-9_-]+$" ;
+        sh:message  "tl:typeSlug must be a lowercase identifier (e.g. 'photograph', 'calendar_event')." ;
+    ] ;
+
+    # --- Ownership ---
+    sh:property [
+        sh:path     tl:owner ;
+        sh:nodeKind sh:IRI ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message  "tl:owner is required; must be an IRI referencing a tl:Agent." ;
+    ] ;
+
+    # --- Scope ---
+    sh:property [
+        sh:path     tl:scope ;
+        sh:class    tl:Scope ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message  "tl:scope is required and must be a tl:Scope individual." ;
+    ] ;
+
+    # --- Timestamps ---
+    sh:property [
+        sh:path     tl:createdAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:updatedAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    # --- Provenance ---
+    sh:property [
+        sh:path     tl:sourceNode ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:comment  "Node ID where this object was originally created." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:contentHash ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:comment  "SHA-256 of the canonical serialization of this object (excluding blobs). Tracks current state for replication verification." ;
+    ] ;
+
+    # --- Blob attachments ---
+    sh:property [
+        sh:path     tl:blob ;
+        sh:class    tl:BlobAttachment ;
+        sh:minCount 0 ;
+        sh:comment  "Zero or more binary attachments. Each attachment has a role, CID, and MIME type." ;
+    ] ;
+
+    # --- Capability extension point ---
+    sh:property [
+        sh:path     tl:capabilityMetadata ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:maxCount 1 ;
+        sh:comment  "Extension point for Capability-specific metadata nodes. Capability shapes constrain this further." ;
+    ] .
+
+
+# -----------------------------------------------------------------------------
+# Scope transitivity constraint
+# A tl:Object MUST NOT reference another tl:Object with a more restrictive scope.
+# Scope order: Community(0) < Group(1) < Family(2) < Individual(3)
+# A 'more restrictive' reference means: scope(target).scopeOrder > scope(source).scopeOrder
+# -----------------------------------------------------------------------------
+
+tl:ScopeTransitivityConstraint a sh:NodeShape ;
+    sh:targetClass tl:Object ;
+    sh:sparql [
+        sh:message "An Object must not reference another Object with a more restrictive scope (scope leak across graph boundary)." ;
+        sh:prefixes tl: ;
+        sh:select """
+            PREFIX tl: <https://tinylibrary.io/ns#>
+            SELECT $this ?referencedObject ?sourceScope ?targetScope
+            WHERE {
+                $this tl:scope ?sourceScope .
+                ?sourceScope tl:scopeOrder ?sourceOrder .
+
+                $this ?anyProp ?referencedObject .
+                ?referencedObject a tl:Object ;
+                                  tl:scope ?targetScope .
+                ?targetScope tl:scopeOrder ?targetOrder .
+
+                FILTER (?targetOrder > ?sourceOrder)
+            }
+        """ ;
+    ] .
+
+
+# -----------------------------------------------------------------------------
+# Agent — represents a user or system agent that owns/creates Objects
+# -----------------------------------------------------------------------------
+
+tl:Agent a rdfs:Class ;
+    rdfs:comment "A user or system agent. Owns and creates ContentBank Objects." .
+
+tl:AgentShape a sh:NodeShape ;
+    sh:targetClass tl:Agent ;
+    sh:closed false ;
+
+    sh:property [
+        sh:path     tl:id ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern  "^urn:cb:agent:[0-9a-f-]{36}$" ;
+        sh:message  "Agent IRI must follow urn:cb:agent:{uuid}." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:displayName ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:publicKey ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:comment  "ECDH public key (base64url) for secure pairing and permission binding." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:createdAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+
+# -----------------------------------------------------------------------------
+# Node — represents a TinyLibrary node in the mesh
+# -----------------------------------------------------------------------------
+
+tl:Node a rdfs:Class ;
+    rdfs:comment "A TinyLibrary node — a device or server participating in the ContentBank mesh." .
+
+tl:NodeShape a sh:NodeShape ;
+    sh:targetClass tl:Node ;
+    sh:closed false ;
+
+    sh:property [
+        sh:path     tl:id ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern  "^urn:cb:node:[0-9a-f-]{36}$" ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:displayName ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:nodeType ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in       ( "edge" "cloud" "gateway" ) ;
+        sh:comment  "edge = RPi/SBC; cloud = DO droplet etc.; gateway = mesh bridge node." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:publicKey ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:lastSeenAt ;
+        sh:datatype xsd:dateTime ;
+        sh:maxCount 1 ;
+    ] .
