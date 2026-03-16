@@ -1,0 +1,126 @@
+@prefix tl:     <https://tinylibrary.io/ns#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+# =============================================================================
+# TinyLibrary ContentBank — Sharing and Proxy Shapes
+# Namespace: https://tinylibrary.io/ns#
+# Version: 0.1.0 (2026-03-16)
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# SharingGrant — a controlled sharing relationship between nodes
+#
+# The grantor generates a purpose-specific ECDH key pair and shares only
+# the public key with the recipient out-of-band. The private key stays
+# with the recipient and never touches the source node.
+#
+# The proxy authenticates pull requests by verifying a JWT signed with the
+# recipient's purpose-specific private key against tl:grantKey.
+#
+# Revocation sets tl:revokedAt. The grant is retained for audit purposes.
+# -----------------------------------------------------------------------------
+
+tl:SharingGrant a rdfs:Class ;
+    rdfs:subClassOf tl:Object ;
+    rdfs:comment "A controlled sharing relationship. Grants a recipient (identified by a purpose-specific key pair) pull access to a specific list of ContentBank Objects. tl:typeSlug = 'sharing_grant'." .
+
+tl:SharingGrantShape a sh:NodeShape ;
+    sh:targetClass tl:SharingGrant ;
+    sh:closed false ;
+
+    # Enforce typeSlug
+    sh:property [
+        sh:path     tl:typeSlug ;
+        sh:hasValue "sharing_grant" ;
+        sh:message  "SharingGrant must have tl:typeSlug 'sharing_grant'." ;
+    ] ;
+
+    # --- Purpose-specific key ---
+    sh:property [
+        sh:path     tl:grantKey ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:comment  "Public key of the purpose-specific ECDH key pair (base64url). Issued by the grantor, held by the recipient. Used to verify signed JWT on proxy requests." ;
+    ] ;
+
+    # --- Grantor ---
+    sh:property [
+        sh:path     tl:grantor ;
+        sh:nodeKind sh:IRI ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:comment  "IRI of the tl:Agent who issued this grant (urn:cb:agent:{uuid})." ;
+    ] ;
+
+    # --- Granted objects (explicit list) ---
+    sh:property [
+        sh:path     tl:grantedObject ;
+        sh:class    tl:Object ;
+        sh:comment  "An Object the recipient is permitted to pull. Zero or more. Future: tl:SharingSet for query-based bulk grants." ;
+    ] ;
+
+    # --- Subscription permission ---
+    sh:property [
+        sh:path     tl:allowSubscribe ;
+        sh:datatype xsd:boolean ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:defaultValue false ;
+        sh:comment  "If true, recipient may register a callback for push-on-change notifications for granted objects." ;
+    ] ;
+
+    # --- Expiry ---
+    sh:property [
+        sh:path     tl:expiresAt ;
+        sh:datatype xsd:dateTime ;
+        sh:maxCount 1 ;
+        sh:comment  "Optional expiry. Proxy rejects requests after this time." ;
+    ] ;
+
+    # --- Revocation (soft delete) ---
+    sh:property [
+        sh:path     tl:revokedAt ;
+        sh:datatype xsd:dateTime ;
+        sh:maxCount 1 ;
+        sh:comment  "Set to revoke the grant. Retained for audit trail. Proxy rejects all requests for revoked grants." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:revokedBy ;
+        sh:nodeKind sh:IRI ;
+        sh:maxCount 1 ;
+        sh:comment  "IRI of the tl:Agent who revoked this grant." ;
+    ] .
+
+
+# Constraint: revokedBy requires revokedAt
+tl:RevocationConsistencyConstraint a sh:NodeShape ;
+    sh:targetClass tl:SharingGrant ;
+    sh:sparql [
+        sh:message "tl:revokedBy requires tl:revokedAt to also be set." ;
+        sh:select """
+            PREFIX tl: <https://tinylibrary.io/ns#>
+            SELECT $this
+            WHERE {
+                $this tl:revokedBy ?agent .
+                FILTER NOT EXISTS { $this tl:revokedAt ?t }
+            }
+        """ ;
+    ] .
+
+
+# -----------------------------------------------------------------------------
+# SharingSet — future extension point for query-based bulk grants
+#
+# Not yet implemented. Placeholder to reserve the type and document intent.
+# A SharingSet defines object membership by criteria (type, scope, tag, query)
+# and can be referenced in tl:grantedObject in place of a specific Object IRI.
+# -----------------------------------------------------------------------------
+
+tl:SharingSet a rdfs:Class ;
+    rdfs:subClassOf tl:Object ;
+    rdfs:comment "Future: a named set of Objects defined by membership criteria (type, scope, tag, or SPARQL query). Can be referenced in a SharingGrant to enable bulk sharing. Not yet implemented in v0.1." .
