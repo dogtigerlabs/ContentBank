@@ -193,12 +193,19 @@ tl:ObjectShape a sh:NodeShape ;
     ] ;
 
     # --- Ownership ---
+    # Owner may be a tl:Agent (individual) or a tl:ScopeGroup (family/group).
+    # Ownership governs storage allocation and write rights.
+    # Scope governs read visibility and must be equal to or broader than ownership.
     sh:property [
         sh:path     tl:owner ;
         sh:nodeKind sh:IRI ;
         sh:minCount 1 ;
         sh:maxCount 1 ;
-        sh:message  "tl:owner is required; must be an IRI referencing a tl:Agent." ;
+        sh:or (
+            [ sh:class tl:Agent ]
+            [ sh:class tl:ScopeGroup ]
+        ) ;
+        sh:message  "tl:owner must be a tl:Agent or tl:ScopeGroup IRI." ;
     ] ;
 
     # --- Scope ---
@@ -313,6 +320,57 @@ tl:ScopeTransitivityConstraint a sh:NodeShape ;
                 AS ?targetOrder)
 
                 FILTER (?targetOrder > ?sourceOrder)
+            }
+        """ ;
+    ] .
+
+
+# -----------------------------------------------------------------------------
+# Ownership/scope compatibility constraint
+#
+# Scope must be equal to or broader than ownership.
+# Scope order: Community(0) < Group(1) < Family(2) < Individual(3)
+# Owner scope order: Agent → Individual(3), ScopeGroup → groupType order
+#
+# Rule: scopeOrder(scope) <= ownerScopeOrder
+# i.e. scope must not be MORE restrictive than the owner's implicit scope level
+# -----------------------------------------------------------------------------
+
+tl:OwnerScopeCompatibilityConstraint a sh:NodeShape ;
+    sh:targetClass tl:Object ;
+    sh:sparql [
+        sh:message "tl:scope must be equal to or broader than tl:owner (scope cannot be more restrictive than ownership)." ;
+        sh:select """
+            PREFIX tl: <https://tinylibrary.io/ns#>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+            SELECT $this
+            WHERE {
+                $this tl:scope ?scope ;
+                      tl:owner ?owner .
+
+                # Resolve scope order
+                BIND(
+                    IF(EXISTS { ?scope tl:scopeOrder ?so }, ?so,
+                        IF(EXISTS { ?scope tl:groupType "family" }, 2,
+                            IF(EXISTS { ?scope tl:groupType "group" }, 1, 0)
+                        )
+                    )
+                AS ?scopeOrder)
+
+                # Resolve owner's implicit scope order:
+                # tl:Agent owner → Individual = 3
+                # tl:ScopeGroup owner → derived from groupType
+                BIND(
+                    IF(EXISTS { ?owner a tl:Agent }, 3,
+                        IF(EXISTS { ?owner tl:groupType "family" }, 2,
+                            IF(EXISTS { ?owner tl:groupType "group" }, 1, 0)
+                        )
+                    )
+                AS ?ownerOrder)
+
+                # Violation: scope is more restrictive than owner
+                FILTER (?scopeOrder > ?ownerOrder)
             }
         """ ;
     ] .

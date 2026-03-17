@@ -48,12 +48,29 @@ Four scope levels, ordered from least to most restrictive:
 
 `tl:Individual` and `tl:Community` are deployment-independent singletons. Family and Group visibility use `tl:ScopeGroup` instances created per deployment (`urn:cb:scope_group:{uuid}`), each with a `tl:member` list of `tl:Agent` IRIs.
 
+## Ownership vs Scope
+
+Ownership and scope are separate concerns:
+
+- **`tl:owner`** — a `tl:Agent` or `tl:ScopeGroup`. Governs storage allocation and write rights.
+- **`tl:scope`** — governs read visibility. Must be equal to or broader than ownership.
+
+| Owner type | Valid scopes |
+|------------|-------------|
+| `tl:Agent` | Individual, Family, Group, Community |
+| `tl:ScopeGroup` (family) | Family, Community |
+| `tl:ScopeGroup` (group) | Group, Family, Community |
+
+Example: an Agent owns an object but sets scope to Community — agent retains ownership/quota attribution while making it visible to all.
+
 **Access enforcement:**
 - `tl:Individual` → requesting Agent must match `tl:owner`
 - `tl:ScopeGroup` (family/group) → requesting Agent must be in `tl:member`
 - `tl:Community` → any authenticated Agent in the deployment
 
-**Scope transitivity rule:** An Object MUST NOT reference another Object with a more restrictive scope. Enforced via `tl:ScopeTransitivityConstraint` (SPARQL-based SHACL constraint) on every write. Works for both singleton scopes and `tl:ScopeGroup` instances.
+**Scope transitivity rule:** An Object MUST NOT reference another Object with a more restrictive scope. Enforced via `tl:ScopeTransitivityConstraint` on every write.
+
+**Ownership/scope compatibility rule:** `tl:scope` must be equal to or broader than `tl:owner`'s implicit scope level. Enforced via `tl:OwnerScopeCompatibilityConstraint` on every write.
 
 ## Blob Attachments
 
