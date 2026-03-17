@@ -174,95 +174,112 @@ tl:ObjectShape a sh:NodeShape ;
 
     # --- Identity ---
     sh:property [
-        sh:path     tl:id ;
-        sh:datatype xsd:string ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:pattern  "^urn:cb:[a-z][a-z0-9_-]+:[0-9a-f-]{36}$" ;
-        sh:message  "tl:id must follow the pattern urn:cb:{type}:{uuid}." ;
+        sh:path        tl:id ;
+        sh:datatype    xsd:string ;
+        sh:minCount    1 ;
+        sh:maxCount    1 ;
+        sh:pattern     "^urn:cb:[a-z][a-z0-9_-]+:[0-9a-f-]{36}$" ;
+        sh:message     "tl:id must follow the pattern urn:cb:{type}:{uuid}." ;
+        tl:apiAccess   "read" ;
+        tl:apiMutable  false ;
+        tl:apiDescription "Stable object identifier. Format: urn:cb:{typeSlug}:{uuid}. Server-generated on create." ;
+        tl:apiExample  "\"urn:cb:photograph:550e8400-e29b-41d4-a716-446655440000\"" ;
     ] ;
 
-    # --- Type slug (mirrors the type segment of the ID for filtering) ---
+    # --- Type slug ---
     sh:property [
-        sh:path     tl:typeSlug ;
-        sh:datatype xsd:string ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:pattern  "^[a-z][a-z0-9_-]+$" ;
-        sh:message  "tl:typeSlug must be a lowercase identifier (e.g. 'photograph', 'calendar_event')." ;
+        sh:path        tl:typeSlug ;
+        sh:datatype    xsd:string ;
+        sh:minCount    1 ;
+        sh:maxCount    1 ;
+        sh:pattern     "^[a-z][a-z0-9_-]+$" ;
+        sh:message     "tl:typeSlug must be a lowercase identifier (e.g. 'photograph', 'calendar_event')." ;
+        tl:apiAccess   "read" ;
+        tl:apiMutable  false ;
+        tl:apiDescription "Type identifier derived from the RDF class. Used for ID prefix-scan filtering." ;
     ] ;
 
     # --- Ownership ---
-    # Owner may be a tl:Agent (individual) or a tl:ScopeGroup (family/group).
-    # Ownership governs storage allocation and write rights.
-    # Scope governs read visibility and must be equal to or broader than ownership.
     sh:property [
-        sh:path     tl:owner ;
-        sh:nodeKind sh:IRI ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
+        sh:path              tl:owner ;
+        sh:nodeKind          sh:IRI ;
+        sh:minCount          1 ;
+        sh:maxCount          1 ;
         sh:or (
             [ sh:class tl:Agent ]
             [ sh:class tl:ScopeGroup ]
         ) ;
-        sh:message  "tl:owner must be a tl:Agent or tl:ScopeGroup IRI." ;
+        sh:message           "tl:owner must be a tl:Agent or tl:ScopeGroup IRI." ;
+        tl:apiMutable        false ;
+        tl:apiListFilterable true ;
+        tl:apiDescription    "Owner of this object. A tl:Agent (individual) or tl:ScopeGroup (family/group). Governs storage allocation and write rights. Immutable after creation." ;
+        tl:apiExample        "\"urn:cb:agent:550e8400-e29b-41d4-a716-446655440000\"" ;
     ] ;
 
     # --- Scope ---
-    # tl:Individual and tl:Community → singleton tl:Scope named individuals
-    # Family / Group visibility → IRI of a tl:ScopeGroup instance
     sh:property [
-        sh:path     tl:scope ;
-        sh:class    tl:Scope ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:message  "tl:scope is required. Use tl:Individual or tl:Community for singleton scopes, or a tl:ScopeGroup IRI for family/group visibility." ;
+        sh:path              tl:scope ;
+        sh:class             tl:Scope ;
+        sh:minCount          1 ;
+        sh:maxCount          1 ;
+        sh:message           "tl:scope is required. Use tl:Individual or tl:Community for singleton scopes, or a tl:ScopeGroup IRI for family/group visibility." ;
+        tl:apiListFilterable true ;
+        tl:apiDescription    "Visibility scope. tl:Individual or tl:Community (singletons), or a tl:ScopeGroup IRI. Must be equal to or broader than ownership." ;
+        tl:apiExample        "\"https://tinylibrary.io/ns#Individual\"" ;
     ] ;
 
     # --- Timestamps ---
     sh:property [
-        sh:path     tl:createdAt ;
-        sh:datatype xsd:dateTime ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
+        sh:path       tl:createdAt ;
+        sh:datatype   xsd:dateTime ;
+        sh:minCount   1 ;
+        sh:maxCount   1 ;
+        tl:apiAccess  "read" ;
+        tl:apiMutable false ;
+        tl:apiSortable true ;
     ] ;
 
     sh:property [
-        sh:path     tl:updatedAt ;
-        sh:datatype xsd:dateTime ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
+        sh:path        tl:updatedAt ;
+        sh:datatype    xsd:dateTime ;
+        sh:minCount    1 ;
+        sh:maxCount    1 ;
+        tl:apiAccess   "read" ;
+        tl:apiSortable true ;
     ] ;
 
     # --- Provenance ---
     sh:property [
-        sh:path     tl:sourceNode ;
-        sh:datatype xsd:string ;
-        sh:maxCount 1 ;
-        sh:comment  "Node ID where this object was originally created." ;
+        sh:path       tl:sourceNode ;
+        sh:datatype   xsd:string ;
+        sh:maxCount   1 ;
+        tl:apiAccess  "read" ;
+        tl:apiMutable false ;
+        tl:apiDescription "Node ID where this object was originally created. Server-set." ;
     ] ;
 
     sh:property [
-        sh:path     tl:contentHash ;
-        sh:datatype xsd:string ;
-        sh:maxCount 1 ;
-        sh:comment  "SHA-256 of the canonical serialization of this object (excluding blobs). Tracks current state for replication verification." ;
+        sh:path       tl:contentHash ;
+        sh:datatype   xsd:string ;
+        sh:maxCount   1 ;
+        tl:apiAccess  "read" ;
+        tl:apiDescription "SHA-256 of the canonical object serialization (excluding blobs). Computed server-side. Used for replication verification." ;
     ] ;
 
     # --- Blob attachments ---
     sh:property [
-        sh:path     tl:blob ;
-        sh:class    tl:BlobAttachment ;
-        sh:minCount 0 ;
-        sh:comment  "Zero or more binary attachments. Each attachment has a role, CID, and MIME type." ;
+        sh:path           tl:blob ;
+        sh:class          tl:BlobAttachment ;
+        sh:minCount       0 ;
+        tl:apiDescription "Zero or more binary attachments. Each has a CID, MIME type, and role. Blobs are fetched from IPFS separately using the CID." ;
     ] ;
 
     # --- Capability extension point ---
     sh:property [
-        sh:path     tl:capabilityMetadata ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:maxCount 1 ;
-        sh:comment  "Extension point for Capability-specific metadata nodes. Capability shapes constrain this further." ;
+        sh:path           tl:capabilityMetadata ;
+        sh:nodeKind       sh:BlankNodeOrIRI ;
+        sh:maxCount       1 ;
+        tl:apiDescription "Capability-specific metadata extension point. Constrained further by Capability shapes." ;
     ] .
 
 

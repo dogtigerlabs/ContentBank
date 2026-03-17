@@ -1,0 +1,97 @@
+@prefix tl:     <https://tinylibrary.io/ns#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+
+# =============================================================================
+# TinyLibrary ContentBank — API Annotation Vocabulary
+# Namespace: https://tinylibrary.io/ns#
+# Version: 0.1.0 (2026-03-16)
+#
+# These annotations are applied to sh:NodeShape and sh:PropertyShape nodes
+# to guide API schema generation (SHACL → JSON Schema / tool definitions).
+# They carry API-specific metadata that has no SHACL equivalent.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# Property-level annotations
+# Applied as additional predicates on sh:PropertyShape blank nodes
+# -----------------------------------------------------------------------------
+
+tl:apiAccess a owl:AnnotationProperty ;
+    rdfs:domain sh:PropertyShape ;
+    rdfs:range  xsd:string ;
+    rdfs:comment """
+        Controls whether a property appears in input schema, output schema, or both.
+        Values: 'read' (output only), 'write' (input only), 'readwrite' (default, both).
+        Examples:
+          tl:id         → 'read'   (server-generated, never submitted)
+          tl:contentHash → 'read'  (computed, never submitted)
+          tl:createdAt  → 'read'   (server-set)
+          tl:updatedAt  → 'read'   (server-set)
+          tl:typeSlug   → 'read'   (derived from type, not submitted)
+          tl:sourceNode → 'read'   (server-set)
+    """ .
+
+tl:apiMutable a owl:AnnotationProperty ;
+    rdfs:domain sh:PropertyShape ;
+    rdfs:range  xsd:boolean ;
+    rdfs:comment """
+        Whether this property can be changed after object creation.
+        false = immutable after create (omitted from update input schema).
+        Default: true.
+        Examples:
+          tl:id        → false
+          tl:createdAt → false
+          tl:owner     → false (ownership does not transfer)
+    """ .
+
+tl:apiDescription a owl:AnnotationProperty ;
+    rdfs:domain sh:PropertyShape ;
+    rdfs:range  xsd:string ;
+    rdfs:comment "Human-readable description for the generated API schema. Overrides rdfs:comment for API docs." .
+
+tl:apiExample a owl:AnnotationProperty ;
+    rdfs:domain sh:PropertyShape ;
+    rdfs:range  xsd:string ;
+    rdfs:comment "Example value for the generated API schema (JSON string)." .
+
+
+# -----------------------------------------------------------------------------
+# Shape-level (type-level) annotations
+# Applied to sh:NodeShape nodes
+# -----------------------------------------------------------------------------
+
+tl:apiOperations a owl:AnnotationProperty ;
+    rdfs:domain sh:NodeShape ;
+    rdfs:range  xsd:string ;
+    rdfs:comment """
+        Comma-separated list of CRUD operations to generate for this type.
+        Values: 'create', 'get', 'update', 'delete', 'list'.
+        Default: 'create,get,update,delete,list'.
+        Example: tl:apiOperations "create,get,list" (no update/delete).
+    """ .
+
+tl:apiListFilterable a owl:AnnotationProperty ;
+    rdfs:domain sh:PropertyShape ;
+    rdfs:range  xsd:boolean ;
+    rdfs:comment """
+        Whether this property is exposed as a filter parameter on list operations.
+        Default: false.
+        Examples:
+          tl:owner     → true  (list objects by owner)
+          tl:scope     → true  (list objects by scope)
+          tl:typeSlug  → false (redundant — list endpoint is already type-specific)
+    """ .
+
+tl:apiSortable a owl:AnnotationProperty ;
+    rdfs:domain sh:PropertyShape ;
+    rdfs:range  xsd:boolean ;
+    rdfs:comment "Whether this property is a valid sort key on list operations. Default: false." .
+
+tl:apiPaginates a owl:AnnotationProperty ;
+    rdfs:domain sh:NodeShape ;
+    rdfs:range  xsd:boolean ;
+    rdfs:comment "Whether list operations for this type support cursor-based pagination. Default: true." .
