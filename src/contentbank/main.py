@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from contentbank.config import settings
 from contentbank.core.validation import load_shapes
-from contentbank.api.routes import objects, replication, proxy, auth
+from contentbank.api.routes import objects, replication, proxy, auth, agents
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ app.add_middleware(
 
 # --- Routes ---
 app.include_router(auth.router,        prefix="/api/v1")
+app.include_router(agents.router,      prefix="/api/v1")
 app.include_router(objects.router,     prefix="/api/v1")
 app.include_router(replication.router, prefix="/api/v1")
 app.include_router(proxy.router,       prefix="/api/v1")
