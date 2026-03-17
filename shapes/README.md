@@ -39,14 +39,21 @@ urn:cb:{typeSlug}:{uuid}
 
 Four scope levels, ordered from least to most restrictive:
 
-| Scope | Order |
-|-------|-------|
-| `tl:Community` | 0 |
-| `tl:Group` | 1 |
-| `tl:Family` | 2 |
-| `tl:Individual` | 3 |
+| Scope | Order | Type |
+|-------|-------|------|
+| `tl:Community` | 0 | Singleton named individual |
+| Group | 1 | `tl:ScopeGroup` instance (`tl:groupType "group"`) |
+| Family | 2 | `tl:ScopeGroup` instance (`tl:groupType "family"`) |
+| `tl:Individual` | 3 | Singleton named individual |
 
-**Scope transitivity rule:** An Object MUST NOT reference another Object with a more restrictive scope. Enforced via `tl:ScopeTransitivityConstraint` (SPARQL-based SHACL constraint) on every write.
+`tl:Individual` and `tl:Community` are deployment-independent singletons. Family and Group visibility use `tl:ScopeGroup` instances created per deployment (`urn:cb:scope_group:{uuid}`), each with a `tl:member` list of `tl:Agent` IRIs.
+
+**Access enforcement:**
+- `tl:Individual` → requesting Agent must match `tl:owner`
+- `tl:ScopeGroup` (family/group) → requesting Agent must be in `tl:member`
+- `tl:Community` → any authenticated Agent in the deployment
+
+**Scope transitivity rule:** An Object MUST NOT reference another Object with a more restrictive scope. Enforced via `tl:ScopeTransitivityConstraint` (SPARQL-based SHACL constraint) on every write. Works for both singleton scopes and `tl:ScopeGroup` instances.
 
 ## Blob Attachments
 

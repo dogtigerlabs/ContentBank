@@ -14,20 +14,91 @@
 
 # -----------------------------------------------------------------------------
 # Scope — ordered from least to most restrictive
+#
+# tl:Individual and tl:Community are singleton named individuals.
+# tl:Family and tl:Group are tl:ScopeGroup instances (membership lists).
+# Each deployment creates its own ScopeGroup instances (urn:cb:scope_group:{uuid}).
+#
+# Scope order for transitivity constraint:
+#   Community(0) < Group(1) < Family(2) < Individual(3)
 # -----------------------------------------------------------------------------
 
 tl:Scope a rdfs:Class ;
-    rdfs:comment "Enumeration of content visibility scopes." .
-
-tl:Community  a tl:Scope ; rdfs:label "Community" ;  tl:scopeOrder 0 .
-tl:Group      a tl:Scope ; rdfs:label "Group" ;      tl:scopeOrder 1 .
-tl:Family     a tl:Scope ; rdfs:label "Family" ;      tl:scopeOrder 2 .
-tl:Individual a tl:Scope ; rdfs:label "Individual" ;  tl:scopeOrder 3 .
+    rdfs:comment "Base class for scope values. Either a singleton (Individual, Community) or a tl:ScopeGroup instance." .
 
 tl:scopeOrder a owl:DatatypeProperty ;
     rdfs:domain tl:Scope ;
     rdfs:range  xsd:integer ;
     rdfs:comment "Numeric ordering of scope restrictiveness. Higher = more restrictive." .
+
+# Singleton scopes (no membership list needed)
+tl:Community  a tl:Scope ; rdfs:label "Community" ;  tl:scopeOrder 0 .
+tl:Individual a tl:Scope ; rdfs:label "Individual" ;  tl:scopeOrder 3 .
+
+
+# -----------------------------------------------------------------------------
+# ScopeGroup — a named group of Agents with a defined scope level
+#
+# Instances are created per deployment (urn:cb:scope_group:{uuid}).
+# tl:groupType determines the scope order for transitivity enforcement:
+#   "group"  → scopeOrder 1
+#   "family" → scopeOrder 2
+# -----------------------------------------------------------------------------
+
+tl:ScopeGroup a rdfs:Class ;
+    rdfs:subClassOf tl:Scope ;
+    rdfs:comment "A named group of Agents. Used as the tl:scope value on Objects with Family or Group visibility. Membership defined by tl:member." .
+
+tl:ScopeGroupShape a sh:NodeShape ;
+    sh:targetClass tl:ScopeGroup ;
+    sh:closed false ;
+
+    sh:property [
+        sh:path     tl:id ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern  "^urn:cb:scope_group:[0-9a-f-]{36}$" ;
+        sh:message  "ScopeGroup IRI must follow urn:cb:scope_group:{uuid}." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:name ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:comment  "Human-readable name for this group (e.g. 'Hernandez Family', 'Water District Team')." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:groupType ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in       ( "family" "group" ) ;
+        sh:comment  "Determines scope order: 'group' = 1, 'family' = 2." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:member ;
+        sh:class    tl:Agent ;
+        sh:minCount 1 ;
+        sh:comment  "One or more Agents who are members of this group." ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:createdAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+
+    sh:property [
+        sh:path     tl:updatedAt ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
 
 
 # -----------------------------------------------------------------------------
@@ -131,12 +202,14 @@ tl:ObjectShape a sh:NodeShape ;
     ] ;
 
     # --- Scope ---
+    # tl:Individual and tl:Community → singleton tl:Scope named individuals
+    # Family / Group visibility → IRI of a tl:ScopeGroup instance
     sh:property [
         sh:path     tl:scope ;
         sh:class    tl:Scope ;
         sh:minCount 1 ;
         sh:maxCount 1 ;
-        sh:message  "tl:scope is required and must be a tl:Scope individual." ;
+        sh:message  "tl:scope is required. Use tl:Individual or tl:Community for singleton scopes, or a tl:ScopeGroup IRI for family/group visibility." ;
     ] ;
 
     # --- Timestamps ---
@@ -197,18 +270,47 @@ tl:ScopeTransitivityConstraint a sh:NodeShape ;
     sh:targetClass tl:Object ;
     sh:sparql [
         sh:message "An Object must not reference another Object with a more restrictive scope (scope leak across graph boundary)." ;
-        sh:prefixes tl: ;
         sh:select """
             PREFIX tl: <https://tinylibrary.io/ns#>
-            SELECT $this ?referencedObject ?sourceScope ?targetScope
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+            SELECT $this ?referencedObject
             WHERE {
                 $this tl:scope ?sourceScope .
-                ?sourceScope tl:scopeOrder ?sourceOrder .
+
+                # Resolve source scope order:
+                # Singleton scopes carry tl:scopeOrder directly.
+                # ScopeGroup instances derive order from tl:groupType.
+                BIND(
+                    IF(EXISTS { ?sourceScope tl:scopeOrder ?x },
+                        ?x,
+                        IF(EXISTS { ?sourceScope tl:groupType "family" },
+                            2,
+                            IF(EXISTS { ?sourceScope tl:groupType "group" },
+                                1,
+                                0
+                            )
+                        )
+                    )
+                AS ?sourceOrder)
 
                 $this ?anyProp ?referencedObject .
                 ?referencedObject a tl:Object ;
                                   tl:scope ?targetScope .
-                ?targetScope tl:scopeOrder ?targetOrder .
+
+                # Resolve target scope order
+                BIND(
+                    IF(EXISTS { ?targetScope tl:scopeOrder ?y },
+                        ?y,
+                        IF(EXISTS { ?targetScope tl:groupType "family" },
+                            2,
+                            IF(EXISTS { ?targetScope tl:groupType "group" },
+                                1,
+                                0
+                            )
+                        )
+                    )
+                AS ?targetOrder)
 
                 FILTER (?targetOrder > ?sourceOrder)
             }
